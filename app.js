@@ -237,7 +237,8 @@ function predict() {
   if ($("predBigSmall")) $("predBigSmall").textContent = getBigSmall(best);
   if ($("predColour")) $("predColour").textContent = getColour(best);
   if ($("status")) $("status").textContent = "Pattern analysis complete";
-
+  if ($("result")) $("result").classList.remove("hidden");
+  
   renderChart(probabilities);
   renderHistory(history);
   showDetails(probabilities, history, top);
