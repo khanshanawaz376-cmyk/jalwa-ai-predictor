@@ -1,0 +1,51 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jalwa AI Predictor v3</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+  <div class="glass">
+    <h1>🔮 Jalwa AI Predictor v3</h1>
+    <p>Statistical Pattern Analysis</p>
+
+    <label>Current Period (last 4 digits)</label>
+    <input id="last4" maxlength="4" inputmode="numeric"
+           placeholder="Example: 1234">
+
+    <label>Previous Results (oldest to newest)</label>
+    <textarea id="history" rows="4"
+      placeholder="Example: 2,5,8,1,0,6,3,9,4,2"></textarea>
+
+    <button id="go">Analyze & Predict</button>
+
+    <div id="loader" class="hidden">⏳ Analyzing patterns...</div>
+    <p id="status"></p>
+
+    <section id="result" class="hidden">
+      <h2>Next Period: <span id="nextPeriod"></span></h2>
+
+      <div class="prediction">
+        <div class="number" id="predNum">-</div>
+        <div id="predBigSmall">-</div>
+        <div id="predColour">-</div>
+      </div>
+
+      <h3>Number Probability</h3>
+      <canvas id="confidenceChart"></canvas>
+
+      <h3>Historical Results</h3>
+      <canvas id="historyChart"></canvas>
+
+      <div id="details"></div>
+    </section>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
