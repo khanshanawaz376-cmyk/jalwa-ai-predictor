@@ -1,0 +1,93 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #101629, #25134a);
+  color: white;
+}
+
+.glass {
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 25px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 20px;
+  box-shadow: 0 10px 40px #0005;
+}
+
+h1, h2, h3, p {
+  text-align: center;
+}
+
+label {
+  display: block;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+input, textarea {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #777;
+  border-radius: 10px;
+  background: #171d32;
+  color: white;
+  font-size: 16px;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  margin-top: 20px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(90deg,#744cff,#bd46ff);
+  color: white;
+  font-size: 17px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: .5;
+}
+
+.prediction {
+  text-align: center;
+  padding: 20px;
+  background: #171d32;
+  border-radius: 15px;
+  margin: 20px 0;
+}
+
+.number {
+  font-size: 65px;
+  font-weight: bold;
+  color: #c08aff;
+}
+
+#predBigSmall, #predColour {
+  margin: 10px;
+  font-size: 20px;
+}
+
+canvas {
+  margin: 20px 0;
+  max-width: 100%;
+}
+
+.hidden {
+  display: none;
+}
+
+#status, #details {
+  line-height: 1.7;
+  text-align: center;
+}
