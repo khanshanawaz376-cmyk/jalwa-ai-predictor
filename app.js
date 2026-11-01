@@ -14,7 +14,7 @@ function getHistory() {
   const raw = $("history")?.value || "";
   return raw.split(/[\s,;|]+/)
     .map(Number)
-    .filter(n => Number.isInteger(n) && n >= 0 && n <= 9);
+  .filter(n => Number.isInteger(n) && n >= 0 && n <= 9).slice(-100);
 }
 
 function getScores(history) {
@@ -100,7 +100,7 @@ function renderHistory(history) {
 
   if (historyChart) historyChart.destroy();
 
-  const recent = history.slice(-20);
+  const recent = history.slice(-100);
 
   historyChart = new Chart(canvas, {
     type: "line",
