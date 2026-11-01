@@ -1,175 +1,248 @@
-
-const $ = id => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
 
 let confidenceChart = null;
 let historyChart = null;
+let currentPrediction = null;
 
-const colours = {
-  0: "Red + Violet",
-  1: "Green",
-  2: "Red",
-  3: "Green",
-  4: "Red",
-  5: "Green + Violet",
-  6: "Red",
-  7: "Green",
-  8: "Red",
-  9: "Green"
+const COLORS = {
+  red: [0, 2, 4, 6, 8],
+  green: [1, 3, 5, 7, 9],
+  violet: [0, 5]
 };
 
-function getProbabilities(history) {
-  const frequency = Array(10).fill(1);
-  const transitions = Array(10).fill(1);
+function getHistory() {
+  const raw = $("history")?.value || "";
+  return raw.split(/[\s,;|]+/)
+    .map(Number)
+    .filter(n => Number.isInteger(n) && n >= 0 && n <= 9);
+}
 
+function getScores(history) {
+  const scores = Array(10).fill(1);
+
+  // Recent frequency analysis
   history.forEach((n, i) => {
-    const weight = 0.5 + i / Math.max(1, history.length - 1);
-    frequency[n] += weight;
+    const weight = 1 + (i / Math.max(history.length, 1)) * 2;
+    scores[n] += weight;
   });
 
-  const last = history[history.length - 1];
-  let transitionCount = 0;
+  // Previous-to-next transition analysis
+  if (history.length >= 2) {
+    const last = history[history.length - 1];
+    let total = 0;
 
-  for (let i = 0; i < history.length - 1; i++) {
-    if (history[i] === last) {
-      transitions[history[i + 1]]++;
-      transitionCount++;
-    }
+    history.slice(0, -1).forEach((n, i) => {
+      if (n === last) {
+        scores[history[i + 1]] += 2;
+        total++;
+      }
+    });
   }
 
-  const totalF = frequency.reduce((a,b) => a+b, 0);
-  const totalT = transitions.reduce((a,b) => a+b, 0);
-
-  return frequency.map((v,i) => {
-    const base = v / totalF;
-    const trans = transitions[i] / totalT;
-    const w = transitionCount >= 3 ? 0.55 : 0.15;
-    return (base * (1-w) + trans*w) * 100;
-  });
+  const sum = scores.reduce((a, b) => a + b, 0);
+  return scores.map(s => (s / sum) * 100);
 }
 
-function getBigSmall(p) {
-  const big = p.slice(5).reduce((a,b) => a+b, 0);
-  const small = p.slice(0,5).reduce((a,b) => a+b, 0);
-
-  return {
-    result: big >= small ? "BIG" : "SMALL",
-    big,
-    small
-  };
+function getColour(n) {
+  if (n === 0 || n === 5) return "Violet";
+  return n % 2 === 0 ? "Red" : "Green";
 }
 
-function getColours(p) {
-  let red = 0, green = 0, violet = 0;
-
-  p.forEach((v,n) => {
-    if ([0,2,4,6,8].includes(n)) red += v;
-    if ([1,3,5,7,9].includes(n)) green += v;
-    if ([0,5].includes(n)) violet += v;
-  });
-
-  return {red,green,violet};
+function getBigSmall(n) {
+  return n >= 5 ? "Big" : "Small";
 }
 
-function updateCharts(history,p) {
+function getNextPeriod() {
+  const input = $("last4");
+  if (!input) return "----";
+
+  const value = String(input.value).replace(/\D/g, "").slice(-4);
+  if (!value) return "----";
+
+  return String((Number(value) + 1) % 10000).padStart(4, "0");
+}
+
+function renderChart(probabilities) {
+  if (typeof Chart === "undefined") return;
+
+  const canvas = $("confidenceChart");
+  if (!canvas) return;
+
   if (confidenceChart) confidenceChart.destroy();
-  if (historyChart) historyChart.destroy();
 
-  confidenceChart = new Chart($("confidenceChart"), {
+  confidenceChart = new Chart(canvas, {
     type: "bar",
     data: {
-      labels: ["0","1","2","3","4","5","6","7","8","9"],
+      labels: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
       datasets: [{
-        label: "Estimated probability %",
-        data: p,
-        backgroundColor: "#9d65ff"
+        label: "Pattern score (%)",
+        data: probabilities,
+        borderWidth: 1
       }]
     },
     options: {
       responsive: true,
       scales: {
-        y: {beginAtZero:true, max:100}
+        y: {
+          beginAtZero: true,
+          max: 30
+        }
       }
     }
   });
+}
 
-  historyChart = new Chart($("historyChart"), {
+function renderHistory(history) {
+  if (typeof Chart === "undefined") return;
+
+  const canvas = $("historyChart");
+  if (!canvas) return;
+
+  if (historyChart) historyChart.destroy();
+
+  const recent = history.slice(-20);
+
+  historyChart = new Chart(canvas, {
     type: "line",
     data: {
-      labels: history.map((_,i) => i+1),
+      labels: recent.map((_, i) => i + 1),
       datasets: [{
-        label: "Historical results",
-        data: history,
-        borderColor: "#35d6ff",
+        label: "Historical numbers",
+        data: recent,
         tension: 0.25
       }]
     },
     options: {
-      responsive:true,
+      responsive: true,
       scales: {
-        y: {min:0,max:9,ticks:{stepSize:1}}
+        y: {
+          min: 0,
+          max: 9,
+          ticks: { stepSize: 1 }
+        }
       }
     }
   });
 }
 
-function predict() {
-  const period = $("last4").value.trim();
-  const raw = $("history").value.trim();
+function showDetails(probabilities, history, top) {
+  const details = $("details");
+  if (!details) return;
 
-  if (!/^\d{4}$/.test(period)) {
-    alert("Enter valid 4 digit period");
-    return;
-  }
+  const rows = top.map((n, i) =>
+    `<p><b>#${i + 1} Number ${n}</b> — ${probabilities[n].toFixed(1)}% pattern score | ${getBigSmall(n)} | ${getColour(n)}</p>`
+  ).join("");
 
-  const history = raw.split(/[\s,]+/).filter(Boolean).map(Number);
+  const big = probabilities.reduce((s, p, n) => s + (n >= 5 ? p : 0), 0);
+  const small = 100 - big;
 
-  if (history.length < 5 ||
-      history.some(n => !Number.isInteger(n) || n < 0 || n > 9)) {
-    alert("Enter at least 5 valid results from 0 to 9");
-    return;
-  }
+  details.innerHTML = `
+    <h3>Top 3 Number Analysis</h3>
+    ${rows}
+    <hr>
+    <p><b>Big:</b> ${big.toFixed(1)}% pattern score</p>
+    <p><b>Small:</b> ${small.toFixed(1)}% pattern score</p>
+    <p><b>History samples:</b> ${history.length}</p>
+    <p><b>Recent numbers:</b> ${history.slice(-10).join(", ") || "No history"}</p>
+    <p><small>These are statistical pattern scores, not guaranteed winning probabilities.</small></p>
+    <hr>
+    <h3>Accuracy Tracker</h3>
+    <label>Actual result (0–9): </label>
+    <input id="actualResult" type="number" min="0" max="9" inputmode="numeric">
+    <button id="saveActual">Save Result</button>
+    <p id="accuracyStatus">Enter the actual result after the round.</p>
+    <p id="accuracyStats"></p>
+  `;
 
-  $("go").disabled = true;
-  $("loader").classList.remove("hidden");
-  $("result").classList.add("hidden");
-
-  setTimeout(() => {
-    try {
-      const p = getProbabilities(history);
-      const best = p.indexOf(Math.max(...p));
-      const bs = getBigSmall(p);
-      const cp = getColours(p);
-
-      const next = String((Number(period)+1)%10000).padStart(4,"0");
-
-      $("nextPeriod").textContent = next;
-      $("predNum").textContent = best;
-
-      $("predBigSmall").textContent =
-        bs.result + " (" + Math.max(bs.big,bs.small).toFixed(1) + "% estimated)";
-
-      $("predColour").textContent =
-        "Most likely colour: " +
-        Object.entries(cp).sort((a,b) => b[1]-a[1])[0][0].toUpperCase();
-
-      $("details").textContent =
-        "Number probability: " + p[best].toFixed(2) +
-        "% | Red: " + cp.red.toFixed(2) +
-        "% | Green: " + cp.green.toFixed(2) +
-        "% | Violet occurrence: " + cp.violet.toFixed(2) +
-        "% | Samples: " + history.length;
-
-      updateCharts(history,p);
-
-      $("result").classList.remove("hidden");
-      $("status").textContent = "Analysis completed.";
-    } catch(e) {
-      $("status").textContent = "Error: " + e.message;
-    } finally {
-      $("loader").classList.add("hidden");
-      $("go").disabled = false;
-    }
-  },300);
+  $("saveActual")?.addEventListener("click", saveActualResult);
+  updateAccuracy();
 }
 
-$("go").addEventListener("click",predict);
+function getRecords() {
+  try {
+    return JSON.parse(localStorage.getItem("jalwaRecords") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveActualResult() {
+  const field = $("actualResult");
+  const actual = Number(field?.value);
+
+  if (!field || field.value === "" || !Number.isInteger(actual) || actual < 0 || actual > 9) {
+    alert("Please enter a number from 0 to 9.");
+    return;
+  }
+
+  if (!currentPrediction) {
+    alert("Make a prediction first.");
+    return;
+  }
+
+  const records = getRecords();
+  records.push({
+    predicted: currentPrediction.top[0],
+    top3: currentPrediction.top,
+    actual
+  });
+
+  try {
+    localStorage.setItem("jalwaRecords", JSON.stringify(records.slice(-200)));
+    $("accuracyStatus").textContent = "Actual result saved.";
+    updateAccuracy();
+  } catch {
+    $("accuracyStatus").textContent = "Browser storage unavailable.";
+  }
+}
+
+function updateAccuracy() {
+  const records = getRecords();
+  const stats = $("accuracyStats");
+  if (!stats) return;
+
+  if (!records.length) {
+    stats.textContent = "No saved results yet.";
+    return;
+  }
+
+  const top1 = records.filter(r => r.predicted === r.actual).length;
+  const top3 = records.filter(r => r.top3.includes(r.actual)).length;
+
+  stats.textContent =
+    `Rounds: ${records.length} | Top 1 hits: ${top1} (${(top1 / records.length * 100).toFixed(1)}%) | Top 3 hits: ${top3} (${(top3 / records.length * 100).toFixed(1)}%)`;
+}
+
+function predict() {
+  const history = getHistory();
+
+  if (history.length < 5) {
+    alert("Please enter at least 5 historical results (0–9).");
+    return;
+  }
+
+  const probabilities = getScores(history);
+  const top = probabilities
+    .map((score, number) => ({ number, score }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(x => x.number);
+
+  const best = top[0];
+
+  currentPrediction = { top };
+
+  if ($("nextPeriod")) $("nextPeriod").textContent = getNextPeriod();
+  if ($("predNum")) $("predNum").textContent = best;
+  if ($("predBigSmall")) $("predBigSmall").textContent = getBigSmall(best);
+  if ($("predColour")) $("predColour").textContent = getColour(best);
+  if ($("status")) $("status").textContent = "Pattern analysis complete";
+
+  renderChart(probabilities);
+  renderHistory(history);
+  showDetails(probabilities, history, top);
+}
+
+$("go")?.addEventListener("click", predict);
+
+if ($("loader")) $("loader").style.display = "none";
